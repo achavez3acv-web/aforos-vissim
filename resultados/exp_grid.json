@@ -1,0 +1,98 @@
+{
+ "A_original": {
+  "cero": 0.904,
+  "copia": 1,
+  "x10": 0,
+  "fpPorDataset": 1.603,
+  "fpDatasets": 0.798,
+  "fpTipo": {
+   "Intervalo repetido": 912,
+   "Intervalo en cero": 691
+  },
+  "real15": {
+   "Intervalo repetido": 7
+  },
+  "real16": {
+   "Intervalo en cero": 24,
+   "Intervalo repetido": 1,
+   "Intervalo vacío": 32,
+   "Periodo copiado": 4
+  }
+ },
+ "B": {
+  "cero": 0.866,
+  "copia": 0.802,
+  "x10": 0.97,
+  "fpPorDataset": 0.781,
+  "fpDatasets": 0.563,
+  "fpTipo": {
+   "Valor atípico": 705,
+   "Intervalo repetido": 76
+  },
+  "real15": {
+   "Intervalo repetido": 7
+  },
+  "real16": {
+   "Intervalo en cero": 24,
+   "Intervalo vacío": 32,
+   "Periodo copiado": 4
+  }
+ },
+ "C": {
+  "cero": 0.866,
+  "copia": 0.802,
+  "x10": 0.876,
+  "fpPorDataset": 0.176,
+  "fpDatasets": 0.156,
+  "fpTipo": {
+   "Valor atípico": 100,
+   "Intervalo repetido": 76
+  },
+  "real15": {
+   "Intervalo repetido": 7
+  },
+  "real16": {
+   "Intervalo en cero": 24,
+   "Intervalo vacío": 32,
+   "Periodo copiado": 4
+  }
+ },
+ "D": {
+  "cero": 0.866,
+  "copia": 0.802,
+  "x10": 0.862,
+  "fpPorDataset": 0.113,
+  "fpDatasets": 0.108,
+  "fpTipo": {
+   "Intervalo repetido": 76,
+   "Valor atípico": 37
+  },
+  "real15": {
+   "Intervalo repetido": 7
+  },
+  "real16": {
+   "Intervalo en cero": 24,
+   "Intervalo vacío": 32,
+   "Periodo copiado": 4
+  }
+ },
+ "E": {
+  "cero": 0.866,
+  "copia": 0.792,
+  "x10": 0.862,
+  "fpPorDataset": 0.055,
+  "fpDatasets": 0.053,
+  "fpTipo": {
+   "Intervalo repetido": 51,
+   "Valor atípico": 4
+  },
+  "real15": {
+   "Intervalo repetido": 6
+  },
+  "real16": {
+   "Intervalo en cero": 24,
+   "Intervalo vacío": 32,
+   "Periodo copiado": 4
+  }
+ }
+}

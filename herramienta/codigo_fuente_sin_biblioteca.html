@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aforos a Vissim</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #e8ebed; --panel: #ffffff; --panel2: #f4f6f7; --ink: #1b2229; --ink2: #4b5660; --mut: #69747d; --rule: #d2d8dd; --grid: #e6eaed;
+    --act: #1d5fa8; --act-ink: #ffffff; --focus: #1d5fa8;
+    --asphalt: #5b626b; --asphalt2: #6f767f; --mark: #ffffff; --map-bg: #f7f8f8; --map-grid: #e7eaec; --map-grid2: #d9dee1;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+    --c1: #e87ba4; --c2: #008300; --c3: #6250d6; --c4: #e34948;
+    --q0: #f0f4f8; --q1: #cde2fb; --q2: #9ec5f4; --q3: #6da7ec; --q4: #3987e5; --q5: #256abf; --q6: #184f95;
+    --good: #0ca30c; --good-ink: #006300; --good-bg: #e7f4e7; --warn: #fab219; --warn-ink: #8a5a00; --warn-bg: #fff3d6; --crit: #d03b3b; --crit-ink: #b02a2a; --crit-bg: #fbe8e8;
+    --peak: rgba(29, 95, 168, .09); --halo: #ffffff;
+    --f-head: "Bahnschrift", "DIN Alternate", "DIN 2014", "Roboto Condensed", "Arial Narrow", system-ui, sans-serif;
+    --f-body: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --bg: #121518; --panel: #1b1f23; --panel2: #22272c; --ink: #eef1f3; --ink2: #c3cad0; --mut: #98a2aa; --rule: #343b42; --grid: #2b3137;
+      --act: #4d8fe0; --act-ink: #0d1116; --focus: #79abeb;
+      --asphalt: #4a5058; --asphalt2: #575e67; --mark: #e9ecee; --map-bg: #171a1e; --map-grid: #23282d; --map-grid2: #2d3339;
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+      --c1: #d55181; --c2: #0ca30c; --c3: #9085e9; --c4: #e66767;
+      --q0: #23282d; --q1: #0d366b; --q2: #104281; --q3: #184f95; --q4: #256abf; --q5: #3987e5; --q6: #6da7ec;
+      --good-ink: #5fd35f; --good-bg: #16301a; --warn-ink: #f6c453; --warn-bg: #33290f; --crit-ink: #f08a8a; --crit-bg: #3a1b1b;
+      --peak: rgba(121, 171, 235, .12); --halo: #1b1f23;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f-body); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px 72px; }
+  header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 28px 0 20px; }
+  .brand h1 { font: 600 28px/1.1 var(--f-head); letter-spacing: .2px; margin: 0; }
+  .brand p { margin: 6px 0 0; color: var(--ink2); max-width: 62ch; }
+  ol.steps { list-style: none; display: flex; gap: 6px; margin: 0; padding: 0; counter-reset: st; flex-wrap: wrap; }
+  ol.steps li { counter-increment: st; }
+  ol.steps a { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px; color: var(--mut); text-decoration: none; font: 500 14px var(--f-head); border: 1px solid transparent; }
+  ol.steps a::before { content: counter(st); width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid currentColor; font-size: 13px; }
+  ol.steps li.done a { color: var(--good-ink); }
+  ol.steps li.done a::before { content: "✓"; background: var(--good-bg); border-color: transparent; }
+  ol.steps li.now a { color: var(--ink); border-color: var(--rule); background: var(--panel); }
+  ol.steps li.now a::before { background: var(--act); color: var(--act-ink); border-color: var(--act); }
+  section.step { background: var(--panel); border-radius: 10px; padding: 20px 22px 22px; margin-bottom: 14px; }
+  .step > h2 { font: 600 19px/1.2 var(--f-head); margin: 0 0 4px; display: flex; gap: 10px; align-items: baseline; }
+  .step > h2 .n { font: 600 15px var(--f-head); color: var(--mut); }
+  .step > .lead { color: var(--ink2); margin: 0 0 16px; max-width: 80ch; }
+  h3 { font: 600 15px/1.25 var(--f-head); margin: 0 0 2px; }
+  .hint { color: var(--mut); font-size: 12.5px; margin: 0 0 8px; }
+  .hidden { display: none !important; }
+  .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* Paso 1: zonas de carga */
+  .drops { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .drop { position: relative; display: flex; gap: 14px; align-items: center; padding: 16px 18px; border: 1.5px dashed var(--rule); border-radius: 10px; cursor: pointer; background: var(--panel2); min-height: 92px; transition: border-color .15s, background .15s; }
+  .drop:hover, .drop.over { border-color: var(--act); }
+  .drop:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .drop .ico { flex: none; width: 44px; height: 52px; }
+  .drop .t { font: 600 16px var(--f-head); display: block; }
+  .drop .d { color: var(--mut); font-size: 13px; display: block; }
+  .drop.ok { border-style: solid; border-color: var(--good); background: var(--good-bg); }
+  .drop.ok .d { color: var(--ink2); }
+  .drop.err { border-style: solid; border-color: var(--crit); background: var(--crit-bg); }
+  .drop .file { font-weight: 600; color: var(--ink); word-break: break-all; }
+
+  /* Paso 2: vista previa */
+  .filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; padding: 12px 14px; background: var(--panel2); border-radius: 8px; margin-bottom: 16px; }
+  .filters label, .cfgrow label { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--mut); }
+  select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 6px 28px 6px 9px; min-height: 34px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 0 0 16px; }
+  .kpi { padding: 10px 12px; border-left: 3px solid var(--rule); }
+  .kpi span { display: block; color: var(--mut); font-size: 12.5px; }
+  .kpi b { display: block; font: 600 22px/1.2 var(--f-head); font-variant-numeric: tabular-nums; }
+  .kpi small { color: var(--mut); font-size: 12px; }
+  .kpi.alert { border-left-color: var(--crit); }
+  .kpi.okk { border-left-color: var(--good); }
+  .prev { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; }
+  .card { min-width: 0; }
+  .card + .card { margin-top: 0; }
+  .col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  .mapbox { position: relative; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--map-bg); }
+  .mapbox svg { display: block; width: 100%; height: 520px; }
+  .mapview { position: absolute; right: 10px; top: 10px; display: flex; background: var(--panel); border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; z-index: 2; }
+  .mapview button { font: 500 13px var(--f-head); min-height: 30px; padding: 4px 12px; border: 0; border-radius: 0; background: transparent; color: var(--ink2); }
+  .mapview button.on { background: var(--act); color: var(--act-ink); }
+  .mapnote { position: absolute; left: 10px; bottom: 8px; font-size: 11.5px; color: var(--mut); background: color-mix(in srgb, var(--map-bg) 85%, transparent); padding: 2px 6px; border-radius: 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--ink2); margin: 4px 0 6px; }
+  .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .legend i.line { height: 4px; vertical-align: 2px; border-radius: 0; }
+  .legend i.out { background: transparent !important; border: 2px solid var(--crit); }
+  .legend i.hatch { background: repeating-linear-gradient(45deg, var(--rule) 0 2px, transparent 2px 5px); }
+  .chart { width: 100%; }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .chart text { font-family: var(--f-body); font-size: 11.5px; fill: var(--mut); }
+  .chart text.v { fill: var(--ink2); }
+  .chart text.h { font-family: var(--f-head); fill: var(--ink); }
+  .band { transition: opacity .12s; } .band:hover { opacity: 1 !important; }
+  .row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; margin-top: 18px; }
+  .notes { margin: 12px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .tip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--panel); font-size: 12.5px; line-height: 1.4; padding: 7px 10px; border-radius: 6px; max-width: 280px; opacity: 0; transition: opacity .08s; }
+  .tip b { font-weight: 600; }
+
+  /* Mensajes */
+  .msg { padding: 9px 12px 9px 34px; border-radius: 6px; margin-top: 10px; position: relative; }
+  .msg::before { position: absolute; left: 11px; top: 9px; font-weight: 700; }
+  .msg.ok { background: var(--good-bg); color: var(--good-ink); } .msg.ok::before { content: "✓"; }
+  .msg.warn { background: var(--warn-bg); color: var(--warn-ink); } .msg.warn::before { content: "!"; left: 14px; }
+  .msg.err { background: var(--crit-bg); color: var(--crit-ink); } .msg.err::before { content: "✕"; }
+  .msg.info { background: var(--panel2); color: var(--ink2); } .msg.info::before { content: "i"; left: 14px; font-style: italic; font-family: Georgia, serif; }
+
+  /* Paso 3: asignaciones */
+  .cfgrow { display: flex; flex-wrap: wrap; gap: 12px; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--rule); padding: 7px 8px; text-align: left; vertical-align: middle; }
+  th { color: var(--mut); font-weight: 600; font-size: 12.5px; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  td.mut, .mut { color: var(--mut); }
+  .asg { display: grid; grid-template-columns: 1fr; gap: 22px; }
+  select.changed { border-color: var(--act); box-shadow: 0 0 0 1px var(--act); }
+  select.empty { border-color: var(--warn); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; }
+  .chip i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+  /* Paso 4 */
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
+  button { font: 600 15px var(--f-head); padding: 10px 18px; border-radius: 8px; border: 1.5px solid var(--act); background: var(--act); color: var(--act-ink); cursor: pointer; min-height: 42px; }
+  button.sec { background: transparent; color: var(--act); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .t-alta { background: var(--crit-bg); color: var(--crit-ink); } .t-media { background: var(--warn-bg); color: var(--warn-ink); } .t-info { background: var(--panel2); color: var(--ink2); } .t-ok { background: var(--good-bg); color: var(--good-ink); }
+  details { margin-top: 14px; border-top: 1px solid var(--rule); padding-top: 10px; }
+  summary { cursor: pointer; font: 600 15px var(--f-head); }
+  tr.peak td { background: var(--peak); }
+  .foot { color: var(--mut); font-size: 12.5px; margin-top: 18px; }
+
+  @media (max-width: 900px) {
+    .prev, .row2 { grid-template-columns: 1fr; }
+    .mapbox svg { height: 400px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Aforos a PTV Vissim</h1>
+      <p>Carga tu aforo en Excel y tu modelo .inpx: la herramienta revisa los datos, te muestra la intersección y escribe los volúmenes, giros y composición en el modelo. Nada sale de este navegador.</p>
+    </div>
+    <nav aria-label="Pasos">
+      <ol class="steps" id="steps">
+        <li class="now"><a href="#sec1">Cargar</a></li>
+        <li><a href="#secPrev">Revisar</a></li>
+        <li><a href="#secCfg">Asignar</a></li>
+        <li><a href="#secRun">Generar</a></li>
+      </ol>
+    </nav>
+  </header>
+
+  <section class="step" id="sec1">
+    <h2><span class="n">1</span>Carga los archivos</h2>
+    <p class="lead">Arrastra cada archivo a su recuadro o haz clic para buscarlo.</p>
+    <div class="drops">
+      <label class="drop" id="dropX">
+        <svg class="ico" viewBox="0 0 44 52" aria-hidden="true"><path d="M4 2h26l10 10v38H4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M30 2v10h10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 22h24M10 29h24M10 36h24M10 43h24M18 18v28M26 18v28" stroke="currentColor" stroke-width="1.4" opacity=".55"/></svg>
+        <span><span class="t">Aforo vehicular (.xlsx)</span><span class="d" id="dX">Hojas AFORO_fecha_acceso, intervalos de 15 min</span></span>
+        <input id="fXlsx" class="vh" type="file" accept=".xlsx,.xlsm,.xls">
+      </label>
+      <label class="drop" id="dropM">
+        <svg class="ico" viewBox="0 0 44 52" aria-hidden="true"><path d="M4 2h26l10 10v38H4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M30 2v10h10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M22 18v28M10 32h24" stroke="currentColor" stroke-width="5" opacity=".35"/><path d="M22 18v28M10 32h24" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/></svg>
+        <span><span class="t">Modelo de Vissim (.inpx)</span><span class="d" id="dM">Red con entradas, rutas estáticas y composiciones</span></span>
+        <input id="fInpx" class="vh" type="file" accept=".inpx">
+      </label>
+    </div>
+    <div id="loadMsg"></div>
+  </section>
+
+  <section class="step hidden" id="secPrev">
+    <h2><span class="n">2</span>Revisa tu intersección y tu aforo</h2>
+    <p class="lead">Elige el escenario. El plano, los indicadores y los gráficos se actualizan al instante.</p>
+    <div class="filters">
+      <label>Día de aforo<select id="selDia"></select></label>
+      <label>Periodo<select id="selPer"><option value="M">Mañana</option><option value="T">Tarde</option></select></label>
+      <label>Hora pico<select id="selPico"><option value="int">De la intersección</option><option value="acc">Por acceso</option></select></label>
+      <label>Volumen de entrada<select id="selVol"><option value="hp">Volumen de la hora pico (veh/h)</option><option value="q15">Tasa del 15 min pico × 4 (veh/h)</option></select></label>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="prev">
+      <div class="card">
+        <h3>Plano de la intersección</h3>
+        <p class="hint">Dibujado con la geometría del .inpx. El grosor de cada banda es proporcional al volumen del giro en la hora pico.</p>
+        <div class="legend" id="legMap"></div>
+        <div class="mapbox" id="map"></div>
+      </div>
+      <div class="col">
+        <div class="card">
+          <h3>Volumen por intervalo de 15 minutos</h3>
+          <p class="hint">Suma de los giros de cada acceso. La franja sombreada es la hora pico; ✕ marca intervalos vacíos o en cero.</p>
+          <div class="legend" id="legInt"></div>
+          <div class="chart" id="chInt"></div>
+        </div>
+        <div class="card">
+          <h3>Volumen por giro en la hora pico</h3>
+          <div class="chart" id="chGiro"></div>
+        </div>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="card">
+        <h3>Composición vehicular por acceso</h3>
+        <p class="hint">Proporción de cada clase en la hora pico.</p>
+        <div class="legend" id="legComp"></div>
+        <div class="chart" id="chComp"></div>
+      </div>
+      <div class="card">
+        <h3>Calidad del aforo por giro e intervalo</h3>
+        <p class="hint">Intensidad relativa al máximo de cada giro. Las celdas con borde tienen una alerta.</p>
+        <div class="legend" id="legQ"></div>
+        <div class="chart" id="chQ"></div>
+      </div>
+    </div>
+    <ul class="notes" id="prevNotes"></ul>
+  </section>
+
+  <section class="step hidden" id="secCfg">
+    <h2><span class="n">3</span>Confirma las asignaciones</h2>
+    <p class="lead">La herramienta propone qué acceso, giro y clase corresponde a cada objeto del modelo a partir de sus nombres. Revisa cada fila y corrige las que no coincidan; el plano se actualiza al cambiar una asignación.</p>
+    <div class="asg">
+      <div><h3>Accesos: entradas de vehículos</h3><div class="scroll"><table id="tInputs"></table></div></div>
+      <div><h3>Giros: rutas estáticas</h3><div class="scroll"><table id="tRoutes"></table></div></div>
+      <div><h3>Clases vehiculares: tipos de vehículo</h3><div class="scroll"><table id="tClasses"></table></div></div>
+    </div>
+  </section>
+
+  <section class="step hidden" id="secRun">
+    <h2><span class="n">4</span>Genera el modelo</h2>
+    <p class="lead">Al procesar, la herramienta aplica el control de calidad, calcula los valores, los escribe en una copia del .inpx y vuelve a leerla para verificar cada valor.</p>
+    <div class="actions"><button id="btnRun">Procesar y verificar</button></div>
+    <div id="secQA" class="hidden">
+      <div id="qaSummary"></div>
+    </div>
+    <div id="secRes" class="hidden">
+      <div id="resInfo"></div>
+      <div id="writeMsg"></div>
+      <div class="actions">
+        <button id="btnDl">Descargar .inpx actualizado</button>
+        <button id="btnCsv" class="sec">Descargar reporte (.csv)</button>
+      </div>
+      <details open><summary>Valores escritos en el modelo</summary><div class="scroll"><table id="tRes"></table></div></details>
+      <details><summary id="sumQA">Alertas del control de calidad</summary><div class="scroll"><table id="tQA"></table></div></details>
+    </div>
+  </section>
+  <p class="foot">Aforos a Vissim v1.2 · Lee el .inpx como XML y modifica solo los atributos de demanda. Verifica el archivo generado en Vissim antes de usarlo.</p>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+<script>/*__XLSX_LIB__*/</script>
+<script>
+'use strict';
+const CLASSES = ['Moto', 'Auto', 'Bus', 'Camión'];
+// umbrales de control de calidad (ver artículo, sección de validación)
+let ZERO_MED = 10, REP_MIN = 10, REP_NZ = 2, OUT_K = 5, OUT_MIN = 15;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = (x, d = 0) => (x == null || Number.isNaN(x)) ? '—' : Number(x).toLocaleString('es-PE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+let AF = null;     // aforos
+let MOD = null;    // modelo
+let OUT = null;    // resultado del último proceso
+
+// ---------- Lectura de aforos ----------
+function readAforos(wb) {
+  const res = { dias: [], accesos: {}, data: {}, labels: { M: [], T: [] }, totals: [], otherSheets: [], classNames: null };
+  const timeRe = /^\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*$/;
+  for (const name of wb.SheetNames) {
+    const m = name.match(/^AFORO_(.+)_([A-Za-z]+)$/);
+    if (!m) { res.otherSheets.push(name); continue; }
+    const dia = m[1], acc = m[2].toUpperCase();
+    if (!res.dias.includes(dia)) res.dias.push(dia);
+    const ws = wb.Sheets[name];
+    const rng = XLSX.utils.decode_range(ws['!ref']);
+    const cell = (r, c) => { const v = ws[XLSX.utils.encode_cell({ r, c })]; return v ? v.v : null; };
+    // celdas "GIRO: xx" y cabeceras "HORAS DE"
+    const giros = [], heads = [];
+    for (let r = rng.s.r; r <= rng.e.r; r++) for (let c = rng.s.c; c <= rng.e.c; c++) {
+      const v = cell(r, c);
+      if (typeof v === 'string') {
+        const g = v.match(/^\s*GIRO\s*:\s*(\w+)/i); if (g) giros.push({ giro: g[1], r, c });
+        if (/^\s*HORAS\s+DE/i.test(v)) heads.push({ r, c });
+      }
+    }
+    for (const g of giros) {
+      const hc = Math.max(...heads.filter(h => h.c <= g.c).map(h => h.c));
+      if (!Number.isFinite(hc)) continue;
+      if (!res.classNames) { const h0 = heads.find(h => h.c === hc); res.classNames = [1, 2, 3, 4].map(k => String(cell(h0.r, hc + k) ?? '')); }
+      (res.accesos[acc] ||= []); if (!res.accesos[acc].includes(g.giro)) res.accesos[acc].push(g.giro);
+      const D = ((res.data[dia] ||= {})[g.giro] ||= {});
+      for (let r = rng.s.r; r <= rng.e.r; r++) {
+        const lab = cell(r, hc);
+        if (typeof lab === 'string' && timeRe.test(lab)) {
+          const t = lab.match(timeRe); const key = `${t[1].padStart(2, '0')}:${t[2]} - ${t[3].padStart(2, '0')}:${t[4]}`;
+          const vals = [1, 2, 3, 4].map(k => cell(r, hc + k));
+          D[key] = vals;
+          const per = +t[1] < 12 ? 'M' : 'T';
+          if (!res.labels[per].includes(key)) res.labels[per].push(key);
+        } else if (typeof lab === 'string' && /^\s*H\.?\s*P\.?/i.test(lab)) {
+          res.totals.push({ sheet: name, dia, giro: g.giro, r, label: lab.trim(), vals: [1, 2, 3, 4].map(k => cell(r, hc + k)) });
+        }
+      }
+    }
+  }
+  res.labels.M.sort(); res.labels.T.sort();
+  return res;
+}
+
+// ---------- Lectura del modelo .inpx ----------
+function readModel(text) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('El archivo .inpx no es un XML válido.');
+  const root = doc.documentElement;
+  const linkName = {};
+  root.querySelectorAll(':scope > links > link').forEach(l => linkName[l.getAttribute('no')] = l.getAttribute('name') || '');
+  const types = [...root.querySelectorAll(':scope > vehicleTypes > vehicleType')].map(v => ({ no: v.getAttribute('no'), name: v.getAttribute('name'), cat: v.getAttribute('category') }));
+  const comps = {};
+  root.querySelectorAll(':scope > vehicleCompositions > vehicleComposition').forEach(c => {
+    comps[c.getAttribute('no')] = { name: c.getAttribute('name'), flows: [...c.querySelectorAll('vehicleCompositionRelativeFlow')].map(f => ({ vehType: f.getAttribute('vehType'), relFlow: +f.getAttribute('relFlow') })) };
+  });
+  const inputs = [...root.querySelectorAll(':scope > vehicleInputs > vehicleInput')].map(v => {
+    const tiv = [...v.querySelectorAll('timeIntervalVehVolume')];
+    return { no: v.getAttribute('no'), link: v.getAttribute('link'), linkName: linkName[v.getAttribute('link')] || '', nInt: tiv.length, volume: tiv[0] ? +tiv[0].getAttribute('volume') : null, vehComp: tiv[0] ? tiv[0].getAttribute('vehComp') : null };
+  });
+  const decisions = [...root.querySelectorAll(':scope > vehicleRoutingDecisionsStatic > vehicleRoutingDecisionStatic')].map(d => ({
+    no: d.getAttribute('no'), link: d.getAttribute('link'),
+    routes: [...d.querySelectorAll('vehicleRouteStatic')].map(r => {
+      const seq = [...r.querySelectorAll('linkSeq > intObjectRef')].map(x => x.getAttribute('key'));
+      const rf = r.getAttribute('relFlow') || '';
+      const m = rf.match(/^(.*):([^:]*)$/);
+      return { no: r.getAttribute('no'), destLink: r.getAttribute('destLink'), destPos: +r.getAttribute('destPos') || null, destName: linkName[r.getAttribute('destLink')] || '', seq, seqNames: seq.map(k => linkName[k] || k), relFlowRaw: rf, relFlow: m ? +m[2] : null, nInt: rf ? rf.trim().split(/\s(?=\d+\s\d+:)/).length : 0 };
+    }),
+  }));
+  const sim = root.querySelector(':scope > simulation');
+  return { text, inputs, decisions: decisions.map((d, i) => ({ ...d, pos: +root.querySelectorAll(':scope > vehicleRoutingDecisionsStatic > vehicleRoutingDecisionStatic')[i].getAttribute('pos') || 0 })), types, comps, linkName, geo: readGeometry(root), simPeriod: sim ? sim.getAttribute('simPeriod') : null, version: root.getAttribute('vissimVersion') };
+}
+
+// ---------- Heurísticas de asignación ----------
+function guessAcc(name, accs) {
+  const n = (name || '').toUpperCase();
+  const m = n.match(/\b([NSEO])\s*-\s*[NSEO]\b/); if (m && accs.includes(m[1])) return m[1];
+  const words = { NORTE: 'N', SUR: 'S', ESTE: 'E', OESTE: 'O' };
+  for (const [w, a] of Object.entries(words)) if (n.includes(w) && accs.includes(a)) return a;
+  return '';
+}
+function guessClass(t) {
+  const n = (t.name || '').toUpperCase();
+  if (/MOTO/.test(n)) return 'Moto';
+  if (/CAMI[OÓ]N|HGV|TRUCK/.test(n)) return 'Camión';
+  if (/\bBUS|AUTOB[UÚ]S|[OÓ]MNIBUS/.test(n)) return 'Bus';
+  if (/AUTO|CAR\b|AUTOM[OÓ]VIL/.test(n)) return 'Auto';
+  return '';
+}
+
+// ---------- Interfaz de configuración ----------
+function buildConfig() {
+  const accs = Object.keys(AF.accesos);
+  $('selDia').innerHTML = AF.dias.map(d => `<option>${esc(d)}</option>`).join('');
+  // entradas
+  $('tInputs').innerHTML = '<tr><th>Entrada</th><th>Link</th><th>Nombre del link</th><th class="n">Volumen actual</th><th>Composición</th><th>Acceso del aforo</th></tr>' +
+    MOD.inputs.map(v => `<tr><td>${v.no}</td><td>${v.link}</td><td>${esc(v.linkName)}</td><td class="n">${fmt(v.volume)}</td><td>${v.vehComp} ${esc(MOD.comps[v.vehComp]?.name || '')}</td>
+      <td><select data-input="${v.no}"><option value="">(sin asignar)</option>${accs.map(a => `<option ${guessAcc(v.linkName, accs) === a ? 'selected' : ''}>${a}</option>`).join('')}</select></td></tr>`).join('');
+  // rutas
+  const rows = [];
+  for (const d of MOD.decisions) {
+    const inp = MOD.inputs.find(v => v.link === d.link);
+    const acc = inp ? guessAcc(inp.linkName, accs) : '';
+    const giros = acc ? AF.accesos[acc] : Object.values(AF.accesos).flat();
+    for (const r of d.routes) {
+      const last = r.seqNames[r.seqNames.length - 1] || '';
+      const num = (last.match(/\b(\d{2})\b/) || [])[1];
+      const guess = num && giros.includes(num) ? num : '';
+      rows.push(`<tr><td>${d.no} (link ${d.link})</td><td>${r.no}</td><td>${esc(r.destName)} (${r.destLink})</td><td class="mut">${esc(r.seqNames.join(' → '))}</td><td class="n">${r.relFlow == null ? '—' : fmt(r.relFlow, 4)}</td>
+        <td><select data-route="${d.no}|${r.no}"><option value="">(sin asignar)</option>${Object.values(AF.accesos).flat().map(g => `<option ${g === guess ? 'selected' : ''}>${g}</option>`).join('')}</select></td></tr>`);
+    }
+  }
+  $('tRoutes').innerHTML = '<tr><th>Decisión</th><th>Ruta</th><th>Destino</th><th>Secuencia de links y conectores</th><th class="n">Proporción actual</th><th>Giro del aforo</th></tr>' + rows.join('');
+  // clases
+  const usedTypes = new Set(Object.values(MOD.comps).flatMap(c => c.flows.map(f => f.vehType)));
+  const tlist = MOD.types.filter(t => usedTypes.has(t.no));
+  $('tClasses').innerHTML = '<tr><th>Clase del aforo</th><th>Encabezado en el Excel</th><th>Tipo de vehículo de Vissim</th></tr>' +
+    CLASSES.map((c, k) => `<tr><td>${c}</td><td class="mut">${esc(AF.classNames?.[k] || '')}</td><td><select data-class="${k}"><option value="">(sin asignar)</option>${tlist.map(t => `<option value="${t.no}" ${guessClass(t) === c ? 'selected' : ''}>${t.no} ${esc(t.name)} (${t.cat})</option>`).join('')}</select></td></tr>`).join('');
+  $('secCfg').classList.remove('hidden');
+  onConfigReady();
+}
+
+// ---------- Control de calidad ----------
+function qa(dia) {
+  const issues = [];
+  const add = (sev, tipo, giro, per, intervalo, detalle) => issues.push({ sev, tipo, giro, per, intervalo, detalle });
+  const sum = v => v.reduce((a, x) => a + (typeof x === 'number' ? x : 0), 0);
+  const D = AF.data[dia] || {};
+  for (const giro of Object.values(AF.accesos).flat()) {
+    const G = D[giro]; if (!G) { add('alta', 'Giro sin datos', giro, '', '', `No hay datos del giro ${giro} para el día ${dia}.`); continue; }
+    for (const per of ['M', 'T']) {
+      const L = AF.labels[per];
+      const tot = L.map(l => G[l] ? sum(G[l]) : null);
+      const valid = tot.filter(x => x != null && x > 0).sort((a, b) => a - b);
+      const med = valid.length ? valid[Math.floor(valid.length / 2)] : 0;
+      L.forEach((l, i) => {
+        const v = G[l];
+        if (!v) { add('alta', 'Intervalo inexistente', giro, per, l, 'El intervalo no figura en la hoja.'); return; }
+        const empt = v.filter(x => x === null || x === '' || x === undefined).length;
+        const nonnum = v.filter(x => x !== null && x !== '' && x !== undefined && typeof x !== 'number').length;
+        if (empt === 4) add('alta', 'Intervalo vacío', giro, per, l, 'Las cuatro clases están vacías.');
+        else if (empt > 0) add('media', 'Celda vacía', giro, per, l, `${empt} clase(s) sin valor.`);
+        if (nonnum) add('alta', 'Valor no numérico', giro, per, l, `${nonnum} celda(s) con texto.`);
+        if (empt < 4 && sum(v) === 0 && med >= ZERO_MED) add('alta', 'Intervalo en cero', giro, per, l, `Total 0 en un giro cuya mediana es ${med} veh/15 min.`);
+        if (i > 0 && G[L[i - 1]] && sum(v) >= REP_MIN && v.filter(x => typeof x === 'number' && x > 0).length >= REP_NZ && JSON.stringify(v) === JSON.stringify(G[L[i - 1]]))
+          add('media', 'Intervalo repetido', giro, per, l, `Valores idénticos al intervalo anterior (${L[i - 1]}): ${v.join(', ')}. Posible copia.`);
+      });
+    }
+    // valores atípicos por clase (posible error de digitación)
+    for (const per of ['M', 'T']) {
+      const L = AF.labels[per];
+      for (let k = 0; k < 4; k++) {
+        const vals = L.map(l => G[l]?.[k]).filter(x => typeof x === 'number').sort((a, b) => a - b);
+        const med = vals.length ? vals[Math.floor(vals.length / 2)] : 0;
+        L.forEach(l => { const x = G[l]?.[k]; if (typeof x === 'number' && x >= OUT_MIN && x > OUT_K * Math.max(med, 1)) add('media', 'Valor atípico', giro, per, l, `${CLASSES[k]}: ${x} frente a una mediana de ${med} en el periodo; posible error de digitación.`); });
+      }
+    }
+    const LM = AF.labels.M, LT = AF.labels.T;
+    if (LM.length === LT.length && LM.length && LM.every((l, i) => G[l] && G[LT[i]] && JSON.stringify(G[l]) === JSON.stringify(G[LT[i]])) && LM.some(l => sum(G[l]) > 0))
+      add('alta', 'Periodo copiado', giro, 'T', '', 'Los datos de la tarde son idénticos, intervalo por intervalo, a los de la mañana.');
+  }
+  // totales escritos en la hoja frente a la suma recalculada
+  for (const t of AF.totals.filter(t => t.dia === dia)) {
+    const per = /MA/i.test(t.label) ? 'M' : 'T';
+    const G = D[t.giro] || {};
+    const calc = [0, 1, 2, 3].map(k => AF.labels[per].reduce((a, l) => a + (typeof G[l]?.[k] === 'number' ? G[l][k] : 0), 0));
+    const diff = calc.map((x, k) => (typeof t.vals[k] === 'number' ? t.vals[k] : NaN) - x);
+    if (diff.some(d => d !== 0)) add('media', 'Total inconsistente', t.giro, per, '', `Fila "${t.label}" de ${t.sheet}: ${t.vals.join(', ')}; suma recalculada: ${calc.join(', ')}.`);
+  }
+  const amb = [...new Set(AF.totals.filter(t => t.dia === dia && /H\.?\s*P/i.test(t.label)).map(t => t.label))];
+  if (amb.length) add('info', 'Rótulo ambiguo', '', '', '', `Las filas ${amb.map(x => '"' + x + '"').join(' y ')} suman el periodo completo (${AF.labels.M.length / 4} h), no la hora pico.`);
+  if (AF.otherSheets.length) add('info', 'Hojas no usadas', '', '', '', `No se procesan: ${AF.otherSheets.join(', ')}. Si alguna suma varios días (p. ej., "TOTAL"), no debe usarse como volumen horario.`);
+  return issues;
+}
+
+// ---------- Cálculo ----------
+function compute(cfg) {
+  const D = AF.data[cfg.dia], L = AF.labels[cfg.per];
+  const sum = v => v.reduce((a, x) => a + (typeof x === 'number' ? x : 0), 0);
+  const q = (giros, l) => giros.reduce((a, g) => a + (D[g]?.[l] ? sum(D[g][l]) : 0), 0);
+  const peakOf = giros => {
+    const qs = L.map(l => q(giros, l)); let best = -1, i0 = 0;
+    for (let i = 0; i + 3 < qs.length; i++) { const s = qs[i] + qs[i + 1] + qs[i + 2] + qs[i + 3]; if (s > best) { best = s; i0 = i; } }
+    return { labels: L.slice(i0, i0 + 4), vol: best, q15max: Math.max(...qs.slice(i0, i0 + 4)) };
+  };
+  const allG = Object.values(AF.accesos).flat();
+  const pkInt = peakOf(allG);
+  const acc = {};
+  for (const [a, giros] of Object.entries(AF.accesos)) {
+    const pk = cfg.pico === 'int' ? pkInt : peakOf(giros);
+    const byG = {}; giros.forEach(g => byG[g] = pk.labels.reduce((s, l) => s + (D[g]?.[l] ? sum(D[g][l]) : 0), 0));
+    const byC = [0, 1, 2, 3].map(k => giros.reduce((s, g) => s + pk.labels.reduce((t, l) => t + (typeof D[g]?.[l]?.[k] === 'number' ? D[g][l][k] : 0), 0), 0));
+    const q15 = Math.max(...pk.labels.map(l => q(giros, l)));
+    acc[a] = { giros, pk, byG, byC, volHP: Object.values(byG).reduce((s, x) => s + x, 0), q15 };
+  }
+  return { pkInt, acc };
+}
+
+// ---------- Escritura en el texto del .inpx (solo atributos puntuales) ----------
+function blockRange(text, tag, no) {
+  const re = new RegExp(`<${tag}\\s[^>]*\\bno="${no}"[^>]*>`, 'g');
+  const m = re.exec(text); if (!m) throw new Error(`No se encontró <${tag} no="${no}">.`);
+  const end = text.indexOf(`</${tag}>`, m.index); if (end < 0) throw new Error(`<${tag} no="${no}"> sin cierre.`);
+  return [m.index, end];
+}
+function setAttrInTag(seg, tagRe, attr, valFn) {
+  let n = 0;
+  const out = seg.replace(tagRe, tag => tag.replace(new RegExp(`\\b${attr}="([^"]*)"`), (all, old) => { n++; return `${attr}="${valFn(old)}"`; }));
+  return [out, n];
+}
+const r4 = x => String(Math.round(x * 10000) / 10000);
+
+function writeModel(cfg, calc) {
+  let text = MOD.text; const changes = []; const warns = [];
+  // agrupación de rutas por acceso
+  for (const v of MOD.inputs) {
+    const a = cfg.inputs[v.no]; if (!a) { warns.push(`La entrada ${v.no} no tiene acceso asignado; no se modifica.`); continue; }
+    const A = calc.acc[a]; if (!A) { warns.push(`El acceso ${a} no existe en el aforo.`); continue; }
+    if (v.nInt !== 1) throw new Error(`La entrada ${v.no} tiene ${v.nInt} intervalos de tiempo; esta versión solo maneja uno.`);
+    // giros del acceso con ruta asignada en el modelo
+    const routed = Object.entries(cfg.routes).filter(([, g]) => A.giros.includes(g)).map(([k, g]) => ({ key: k, giro: g }));
+    const giroSinRuta = A.giros.filter(g => !routed.some(r => r.giro === g));
+    let volBase = cfg.vol === 'hp' ? A.volHP : A.q15 * 4;
+    const excl = giroSinRuta.reduce((s, g) => s + A.byG[g], 0);
+    const factor = A.volHP ? (A.volHP - excl) / A.volHP : 1;
+    giroSinRuta.forEach(g => warns.push(`El giro ${g} (acceso ${a}) no tiene ruta asignada: sus ${A.byG[g]} veh (${fmt(100 * A.byG[g] / A.volHP, 1)} %) se excluyen del volumen de entrada.`));
+    const vol = Math.round(volBase * factor);
+    const [s, e] = blockRange(text, 'vehicleInput', v.no);
+    let [seg, n] = setAttrInTag(text.slice(s, e), /<timeIntervalVehVolume\s[^>]*>/g, 'volume', () => String(vol));
+    if (n !== 1) throw new Error(`Entrada ${v.no}: se esperaba 1 volumen, se encontraron ${n}.`);
+    text = text.slice(0, s) + seg + text.slice(e);
+    changes.push({ obj: `Entrada ${v.no} (acceso ${a})`, attr: 'Volumen (veh/h)', old: v.volume, nw: vol, check: { kind: 'vol', no: v.no, val: vol } });
+    // composición (solo giros con ruta, coherente con el volumen)
+    const routedG = routed.map(r => r.giro);
+    const byC = [0, 1, 2, 3].map(k => routedG.reduce((s2, g) => s2 + A.pk.labels.reduce((t, l) => t + (typeof AF.data[cfg.dia][g]?.[l]?.[k] === 'number' ? AF.data[cfg.dia][g][l][k] : 0), 0), 0));
+    const comp = MOD.comps[v.vehComp];
+    const shared = MOD.inputs.filter(x => x.vehComp === v.vehComp && cfg.inputs[x.no] && cfg.inputs[x.no] !== a);
+    if (shared.length) warns.push(`La composición ${v.vehComp} se comparte con otra entrada de otro acceso; no se modifica.`);
+    else if (comp) {
+      const tot = byC.reduce((x, y) => x + y, 0);
+      const [cs, ce] = blockRange(text, 'vehicleComposition', v.vehComp);
+      let cseg = text.slice(cs, ce);
+      for (const f of comp.flows) {
+        const k = Object.entries(cfg.classes).find(([, t]) => t === f.vehType)?.[0];
+        const val = k == null ? 0 : byC[+k] / tot;
+        let m; [cseg, m] = setAttrInTag(cseg, new RegExp(`<vehicleCompositionRelativeFlow\\s[^>]*\\bvehType="${f.vehType}"[^>]*>`, 'g'), 'relFlow', () => r4(val));
+        if (m !== 1) throw new Error(`Composición ${v.vehComp}: tipo ${f.vehType} no encontrado una sola vez.`);
+        changes.push({ obj: `Composición ${v.vehComp} (acceso ${a})`, attr: `Proporción ${k == null ? 'tipo ' + f.vehType : CLASSES[+k]}`, old: f.relFlow, nw: +r4(val), dec: 4, check: { kind: 'comp', no: v.vehComp, vt: f.vehType, val: +r4(val) } });
+      }
+      for (const [k, t] of Object.entries(cfg.classes)) if (t && !comp.flows.some(f => f.vehType === t) && byC[+k] > 0) warns.push(`La composición ${v.vehComp} no incluye el tipo ${t} (${CLASSES[+k]}); esa clase no se representa.`);
+      text = text.slice(0, cs) + cseg + text.slice(ce);
+    }
+    // rutas
+    const sumRouted = routed.reduce((s, r) => s + A.byG[r.giro], 0);
+    for (const r of routed) {
+      const [dno, rno] = r.key.split('|');
+      const dec = MOD.decisions.find(d => d.no === dno); const route = dec.routes.find(x => x.no === rno);
+      const share = sumRouted ? A.byG[r.giro] / sumRouted : 0;
+      if (dec.routes.length === 1 && !route.relFlowRaw) { changes.push({ obj: `Decisión ${dno}, ruta ${rno} (giro ${r.giro})`, attr: 'Proporción', old: null, nw: 1, dec: 4, note: 'única ruta; no requiere proporción' }); continue; }
+      if (route.nInt > 1) throw new Error(`La ruta ${dno}-${rno} tiene varios intervalos; esta versión solo maneja uno.`);
+      let key = (route.relFlowRaw.match(/^(.*):[^:]*$/) || [])[1];
+      if (!key) key = (dec.routes.map(x => x.relFlowRaw.match(/^(.*):[^:]*$/)).find(Boolean) || [])[1];
+      if (!key) throw new Error(`No se pudo determinar el intervalo de la ruta ${dno}-${rno}.`);
+      const [ds, de] = blockRange(text, 'vehicleRoutingDecisionStatic', dno);
+      let dseg = text.slice(ds, de), m;
+      [dseg, m] = setAttrInTag(dseg, new RegExp(`<vehicleRouteStatic\\s[^>]*\\bno="${rno}"[^>]*>`, 'g'), 'relFlow', () => `${key}:${r4(share)}`);
+      if (m !== 1) throw new Error(`Ruta ${dno}-${rno} no encontrada una sola vez.`);
+      text = text.slice(0, ds) + dseg + text.slice(de);
+      changes.push({ obj: `Decisión ${dno}, ruta ${rno} (giro ${r.giro})`, attr: 'Proporción', old: route.relFlow, nw: +r4(share), dec: 4, check: { kind: 'route', d: dno, r: rno, val: +r4(share) } });
+    }
+  }
+  // verificación: volver a leer el archivo generado
+  const chk = readModel(text); let okN = 0, totN = 0; const fails = [];
+  for (const c of changes.filter(c => c.check)) {
+    totN++; const k = c.check; let got;
+    if (k.kind === 'vol') got = chk.inputs.find(v => v.no === k.no)?.volume;
+    if (k.kind === 'comp') got = chk.comps[k.no]?.flows.find(f => f.vehType === k.vt)?.relFlow;
+    if (k.kind === 'route') got = chk.decisions.find(d => d.no === k.d)?.routes.find(r => r.no === k.r)?.relFlow;
+    if (got === k.val) okN++; else fails.push(`${c.obj} ${c.attr}: esperado ${k.val}, leído ${got}`);
+  }
+  const sizeDiff = text.length - MOD.text.length;
+  return { text, changes, warns, verify: { okN, totN, fails }, sizeDiff };
+}
+
+// ---------- Ejecución ----------
+function readCfg() {
+  const cfg = { dia: $('selDia').value, per: $('selPer').value, pico: $('selPico').value, vol: $('selVol').value, inputs: {}, routes: {}, classes: {} };
+  document.querySelectorAll('[data-input]').forEach(s => { if (s.value) cfg.inputs[s.dataset.input] = s.value; });
+  document.querySelectorAll('[data-route]').forEach(s => { if (s.value) cfg.routes[s.dataset.route] = s.value; });
+  document.querySelectorAll('[data-class]').forEach(s => { if (s.value) cfg.classes[s.dataset.class] = s.value; });
+  return cfg;
+}
+function run() {
+  const t0 = performance.now();
+  const cfg = readCfg();
+  const issues = qa(cfg.dia);
+  let calc, res, err = null;
+  try { calc = compute(cfg); res = writeModel(cfg, calc); } catch (e) { err = e.message; }
+  const ms = performance.now() - t0;
+  // QA
+  const inPeak = i => calc && i.per === cfg.per && i.intervalo && Object.values(calc.acc).some(A => A.giros.includes(i.giro) && A.pk.labels.includes(i.intervalo));
+  issues.forEach(i => i.afectaHP = inPeak(i) ? 'Sí' : (i.per === cfg.per && !i.intervalo && i.tipo === 'Periodo copiado' ? 'Sí' : ''));
+  const nA = issues.filter(i => i.sev === 'alta').length, nM = issues.filter(i => i.sev === 'media').length, nHP = issues.filter(i => i.afectaHP === 'Sí').length;
+  $('qaSummary').innerHTML = `<div class="kpis"><div class="kpi"><span class="mut">Severidad alta</span><b>${nA}</b></div><div class="kpi"><span class="mut">Severidad media</span><b>${nM}</b></div><div class="kpi"><span class="mut">Afectan la hora pico elegida</span><b>${nHP}</b></div></div>` +
+    (nHP ? '<div class="msg warn">Hay anomalías dentro de la hora pico usada para el modelo. Revíselas antes de usar los resultados.</div>' : '<div class="msg ok">Ninguna anomalía cae dentro de la hora pico usada para el modelo.</div>');
+  const tagc = { alta: 't-alta', media: 't-media', info: 't-info' };
+  $('tQA').innerHTML = '<tr><th>Severidad</th><th>Tipo</th><th>Giro</th><th>Periodo</th><th>Intervalo</th><th>Detalle</th><th>Afecta HP</th></tr>' +
+    issues.map(i => `<tr><td><span class="tag ${tagc[i.sev]}">${i.sev}</span></td><td>${esc(i.tipo)}</td><td>${esc(i.giro)}</td><td>${i.per === 'M' ? 'Mañana' : i.per === 'T' ? 'Tarde' : ''}</td><td>${esc(i.intervalo)}</td><td>${esc(i.detalle)}</td><td>${i.afectaHP}</td></tr>`).join('');
+  $('secQA').classList.remove('hidden');
+  // resultados
+  $('secRes').classList.remove('hidden');
+  if (err) { $('resInfo').innerHTML = `<div class="msg err">${esc(err)}</div>`; $('tRes').innerHTML = ''; $('writeMsg').innerHTML = ''; $('btnDl').disabled = true; OUT = { cfg, issues, ms }; return; }
+  const pk = calc.pkInt;
+  $('resInfo').innerHTML = `<div class="kpis">
+    <div class="kpi"><span class="mut">Día y periodo</span><b>${esc(cfg.dia)} · ${cfg.per === 'M' ? 'Mañana' : 'Tarde'}</b></div>
+    <div class="kpi"><span class="mut">Hora pico de la intersección</span><b>${pk.labels[0].slice(0, 5)}–${pk.labels[3].slice(-5)}</b></div>
+    <div class="kpi"><span class="mut">Volumen de la intersección</span><b>${fmt(pk.vol)} veh/h</b></div>
+    <div class="kpi"><span class="mut">Factor de hora pico</span><b>${fmt(pk.vol / (4 * pk.q15max), 3)}</b></div>
+    <div class="kpi"><span class="mut">Tiempo de procesamiento</span><b>${fmt(ms, 0)} ms</b></div></div>
+    ${cfg.pico === 'acc' ? '<p class="mut">Hora pico por acceso: ' + Object.entries(calc.acc).map(([a, A]) => `${a} ${A.pk.labels[0].slice(0, 5)}–${A.pk.labels[3].slice(-5)}`).join(' · ') + '</p>' : ''}
+    ${MOD.simPeriod ? `<p class="mut">Periodo de simulación en el archivo: ${esc(MOD.simPeriod)} s · Vissim ${esc(MOD.version || '')}</p>` : ''}`;
+  $('tRes').innerHTML = '<tr><th>Objeto</th><th>Atributo</th><th class="n">Valor en el modelo</th><th class="n">Valor calculado</th><th class="n">Diferencia</th><th>Nota</th></tr>' +
+    res.changes.map(c => { const d = c.dec || 0; const dif = c.old == null || c.old === 0 ? '—' : fmt(100 * (c.nw - c.old) / c.old, 1) + ' %'; return `<tr><td>${esc(c.obj)}</td><td>${esc(c.attr)}</td><td class="n">${fmt(c.old, d)}</td><td class="n">${fmt(c.nw, d)}</td><td class="n">${dif}</td><td class="mut">${esc(c.note || '')}</td></tr>`; }).join('');
+  const v = res.verify;
+  $('writeMsg').innerHTML = (res.warns.length ? `<div class="msg warn">${res.warns.map(esc).join('<br>')}</div>` : '') +
+    (v.okN === v.totN ? `<div class="msg ok">Verificación: el archivo generado se volvió a leer y los ${v.totN} valores escritos coinciden con los calculados. El resto del archivo no se modificó.</div>` : `<div class="msg err">Verificación fallida (${v.okN}/${v.totN}): ${v.fails.map(esc).join('; ')}</div>`);
+  $('btnDl').disabled = v.okN !== v.totN;
+  setStep(4);
+  OUT = { cfg, issues, calc, res, ms, name: MOD.fileName.replace(/\.inpx$/i, '') + `_AUTO_${cfg.dia}_${cfg.per}.inpx` };
+}
+
+function download(name, content, type) {
+  const blob = new Blob([content], { type }); const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function csv() {
+  const q = s => `"${String(s ?? '').replace(/"/g, '""')}"`;
+  const lines = ['seccion;severidad;tipo;giro;periodo;intervalo;detalle;afecta_hp'];
+  OUT.issues.forEach(i => lines.push(['QA', i.sev, i.tipo, i.giro, i.per, i.intervalo, i.detalle, i.afectaHP].map(q).join(';')));
+  lines.push(''); lines.push('seccion;objeto;atributo;valor_modelo;valor_calculado');
+  (OUT.res?.changes || []).forEach(c => lines.push(['VALORES', c.obj, c.attr, c.old, c.nw].map(q).join(';')));
+  lines.push(''); lines.push(`"tiempo_ms";${Math.round(OUT.ms)}`);
+  download(`reporte_${OUT.cfg.dia}_${OUT.cfg.per}.csv`, '﻿' + lines.join('\r\n'), 'text/csv');
+}
+
+
+// =====================================================================
+// v1.2: geometría del modelo, vista previa y gráficos
+// =====================================================================
+const ACC_NAME = { N: 'Norte', S: 'Sur', E: 'Este', O: 'Oeste' };
+const accName = a => ACC_NAME[a] || a;
+const accColor = a => `var(--s${Math.min(4, Object.keys(AF.accesos).indexOf(a) + 1)})`;
+const clsColor = k => `var(--c${k + 1})`;
+const sumN = v => v.reduce((a, x) => a + (typeof x === 'number' ? x : 0), 0);
+const isEmptyRow = v => !v || v.every(x => x === null || x === '' || x === undefined);
+const hhmm = l => l.slice(0, 5);
+const rngLab = labs => `${hhmm(labs[0])}–${labs[labs.length - 1].slice(-5)}`;
+
+// ---------- Geometría del .inpx ----------
+function readGeometry(root) {
+  const links = {};
+  root.querySelectorAll(':scope > links > link').forEach(l => {
+    const no = l.getAttribute('no');
+    const pts = [...l.querySelectorAll('geometry > linkPolyPts > linkPolyPoint')].map(p => [+p.getAttribute('x'), -(+p.getAttribute('y'))]);
+    const lanes = [...l.querySelectorAll(':scope > lanes > lane')].map(x => +x.getAttribute('width') || 3.5);
+    const fr = l.querySelector('fromLinkEndPt'), to = l.querySelector('toLinkEndPt');
+    links[no] = {
+      no, name: l.getAttribute('name') || '', pts, lanes: lanes.length ? lanes : [3.5], conn: !!fr,
+      from: fr ? { link: fr.getAttribute('link'), pos: +fr.getAttribute('pos') } : null,
+      to: to ? { link: to.getAttribute('link'), pos: +to.getAttribute('pos') } : null,
+    };
+    links[no].width = links[no].lanes.reduce((a, b) => a + b, 0);
+  });
+  const heads = [...root.querySelectorAll(':scope > signalHeads > signalHead')].map(h => {
+    const [link, lane] = (h.getAttribute('lane') || '').split(' ');
+    return { link, lane: +lane || 1, pos: +h.getAttribute('pos') || 0, name: h.getAttribute('name') || '' };
+  });
+  return { links, heads };
+}
+// (las coordenadas Y se invierten al leer: en Vissim crecen hacia arriba, en SVG hacia abajo)
+const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+function plLen(p) { let s = 0; for (let i = 1; i < p.length; i++) s += dist(p[i - 1], p[i]); return s; }
+function plAt(p, d) {
+  let acc = 0;
+  for (let i = 1; i < p.length; i++) {
+    const L = dist(p[i - 1], p[i]);
+    if (acc + L >= d || i === p.length - 1) {
+      const t = L ? Math.min(1, Math.max(0, (d - acc) / L)) : 0;
+      return { x: p[i - 1][0] + t * (p[i][0] - p[i - 1][0]), y: p[i - 1][1] + t * (p[i][1] - p[i - 1][1]), tx: (p[i][0] - p[i - 1][0]) / (L || 1), ty: (p[i][1] - p[i - 1][1]) / (L || 1) };
+    }
+    acc += L;
+  }
+  return { x: p[0][0], y: p[0][1], tx: 1, ty: 0 };
+}
+function plSub(p, d0, d1) {
+  const a = plAt(p, d0), b = plAt(p, d1), out = [[a.x, a.y]]; let acc = 0;
+  for (let i = 1; i < p.length; i++) { acc += dist(p[i - 1], p[i]); if (acc > d0 + 1e-6 && acc < d1 - 1e-6) out.push(p[i]); }
+  out.push([b.x, b.y]); return out;
+}
+// desplazamiento lateral: positivo hacia la derecha del sentido de circulación (en coordenadas de pantalla)
+function plOffset(p, off) {
+  return p.map((pt, i) => {
+    let nx = 0, ny = 0;
+    if (i > 0) { const L = dist(p[i - 1], pt) || 1; nx += -(pt[1] - p[i - 1][1]) / L; ny += (pt[0] - p[i - 1][0]) / L; }
+    if (i < p.length - 1) { const L = dist(pt, p[i + 1]) || 1; nx += -(p[i + 1][1] - pt[1]) / L; ny += (p[i + 1][0] - pt[0]) / L; }
+    const m = Math.hypot(nx, ny) || 1; return [pt[0] + off * nx / m, pt[1] + off * ny / m];
+  });
+}
+const pathD = p => p.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(2) + ' ' + q[1].toFixed(2)).join('');
+
+// ---------- Datos de la vista previa ----------
+function entryVolumes(cfg, calc) {
+  // mismo criterio que writeModel: se excluyen los giros sin ruta asignada
+  const out = {};
+  for (const [a, A] of Object.entries(calc.acc)) {
+    const routedG = Object.values(cfg.routes).filter(g => A.giros.includes(g));
+    const excl = A.giros.filter(g => !routedG.includes(g)).reduce((s, g) => s + A.byG[g], 0);
+    const base = cfg.vol === 'hp' ? A.volHP : A.q15 * 4;
+    out[a] = { vol: Math.round(base * (A.volHP ? (A.volHP - excl) / A.volHP : 1)), sinRuta: A.giros.filter(g => !routedG.includes(g)), excl };
+  }
+  return out;
+}
+function routePaths(cfg) {
+  const G = MOD.geo.links, res = [];
+  for (const d of MOD.decisions) for (const r of d.routes) {
+    const giro = cfg.routes[`${d.no}|${r.no}`];
+    const keys = [d.link, ...r.seq, r.destLink].filter((k, i, arr) => G[k] && (i === 0 || k !== arr[i - 1]));
+    const parts = keys.map((k, i) => {
+      const L = G[k]; if (L.conn) return { key: k, pts: L.pts, conn: true };
+      const prev = keys[i - 1] && G[keys[i - 1]], next = keys[i + 1] && G[keys[i + 1]];
+      const len = plLen(L.pts);
+      let a = i === 0 ? (d.pos || 0) : (prev?.conn && prev.to?.link === k ? prev.to.pos : 0);
+      let b = i === keys.length - 1 ? (r.destPos ?? len) : (next?.conn && next.from?.link === k ? next.from.pos : len);
+      a = Math.max(0, Math.min(len, a)); b = Math.max(a, Math.min(len, b));
+      return { key: k, pts: plSub(L.pts, a, b), conn: false };
+    });
+    res.push({ d: d.no, r: r.no, link: d.link, giro, parts });
+  }
+  // tramos exclusivos de cada ruta (donde la banda no se superpone con otra)
+  const use = {};
+  res.forEach((p, i) => p.parts.forEach(q => (use[q.key] ||= new Set()).add(i)));
+  res.forEach((p, i) => {
+    const own = p.parts.filter(q => use[q.key].size === 1);
+    const ownConn = own.filter(q => q.conn);
+    p.band = (ownConn.length ? ownConn : own.length ? own : p.parts.slice(-1)).map(q => q.pts);
+  });
+  return res;
+}
+
+// ---------- Utilidades SVG ----------
+const NS = 'http://www.w3.org/2000/svg';
+const tipAttr = html => ` data-tip="${esc(html)}" tabindex="-1"`;
+function niceMax(v) { if (v <= 0) return 10; const e = Math.pow(10, Math.floor(Math.log10(v))); for (const m of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * e >= v) return m * e; return 10 * e; }
+const txt = (x, y, s, o = {}) => { const st = [o.fill ? `fill:${o.fill}` : '', o.size ? `font-size:${o.size}px` : '', o.weight ? `font-weight:${o.weight}` : ''].filter(Boolean).join(';'); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}"${o.anchor ? ` text-anchor="${o.anchor}"` : ''}${o.cls ? ` class="${o.cls}"` : ''}${st ? ` style="${st}"` : ''}${o.halo ? ` stroke="var(--panel)" stroke-width="3" paint-order="stroke" stroke-linejoin="round"` : ''}>${esc(s)}</text>`; };
+const CHART_CSS = '';
+function legendHTML(items) { return items.map(it => `<span><i class="${it.cls || ''}"${it.color ? ` style="background:${it.color}"` : ''}></i>${esc(it.label)}</span>`).join(''); }
+
+// ---------- Plano de la intersección ----------
+let MAP_VIEW = 'core';
+document.addEventListener('click', e => { const b = e.target.closest('.mapview button'); if (b) { MAP_VIEW = b.dataset.view; refreshPreview(); } });
+function renderMap(cfg, calc, entries) {
+  const box = $('map'); const G = MOD.geo, links = Object.values(G.links).filter(l => l.pts.length >= 2);
+  if (!links.length) { box.innerHTML = '<p class="hint" style="padding:16px">El modelo no tiene links con geometría.</p>'; return; }
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const core = links.filter(l => l.conn);
+  const focus = MAP_VIEW === 'core' && core.length ? core : links;
+  focus.forEach(l => l.pts.forEach(([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }));
+  const W = box.clientWidth || 640, H = box.clientHeight > 50 ? box.clientHeight : 520;
+  const pad = MAP_VIEW === 'core' ? Math.max(28, 0.35 * Math.max(x1 - x0, y1 - y0)) : 0.08 * Math.max(x1 - x0, y1 - y0) + 12;
+  let vx = x0 - pad, vy = y0 - pad, vw = x1 - x0 + 2 * pad, vh = y1 - y0 + 2 * pad;
+  if (vw / vh < W / H) { const nw = vh * W / H; vx -= (nw - vw) / 2; vw = nw; } else { const nh = vw * H / W; vy -= (nh - vh) / 2; vh = nh; }
+  const s = W / vw, px = n => n / s; // px a metros
+  const out = [];
+  // cuadrícula de 10 m
+  const g0x = Math.floor(vx / 10) * 10, g0y = Math.floor(vy / 10) * 10;
+  let grid = '';
+  for (let x = g0x; x <= vx + vw; x += 10) grid += `<line x1="${x}" y1="${vy}" x2="${x}" y2="${vy + vh}" stroke="var(${x % 50 === 0 ? '--map-grid2' : '--map-grid'})" stroke-width="${px(1)}"/>`;
+  for (let y = g0y; y <= vy + vh; y += 10) grid += `<line x1="${vx}" y1="${y}" x2="${vx + vw}" y2="${y}" stroke="var(${y % 50 === 0 ? '--map-grid2' : '--map-grid'})" stroke-width="${px(1)}"/>`;
+  out.push(grid);
+  // calzada: conectores debajo, links encima
+  for (const l of links.filter(l => l.conn)) out.push(`<path d="${pathD(l.pts)}" fill="none" stroke="var(--asphalt2)" stroke-width="${l.width}" stroke-linejoin="round"/>`);
+  for (const l of links.filter(l => !l.conn)) out.push(`<path d="${pathD(l.pts)}" fill="none" stroke="var(--asphalt)" stroke-width="${l.width}" stroke-linejoin="round"/>`);
+  // demarcación: bordes continuos y separadores de carril discontinuos
+  const mw = Math.max(0.15, px(1));
+  for (const l of links.filter(l => !l.conn)) {
+    const W2 = l.width / 2; let acc = 0;
+    out.push(`<path d="${pathD(plOffset(l.pts, -W2 + 0.35))}" fill="none" stroke="var(--mark)" stroke-width="${mw}" opacity=".75"/>`);
+    out.push(`<path d="${pathD(plOffset(l.pts, W2 - 0.35))}" fill="none" stroke="var(--mark)" stroke-width="${mw}" opacity=".75"/>`);
+    for (let k = 0; k < l.lanes.length - 1; k++) {
+      acc += l.lanes[k];
+      out.push(`<path d="${pathD(plOffset(l.pts, W2 - acc))}" fill="none" stroke="var(--mark)" stroke-width="${mw}" stroke-dasharray="3 5" opacity=".75"/>`);
+    }
+  }
+  // líneas de parada en los semáforos (carril 1 = carril derecho)
+  for (const h of G.heads) {
+    const l = G.links[h.link]; if (!l) continue;
+    const p = plAt(l.pts, h.pos), w = l.lanes[h.lane - 1] || 3; let acc = 0; for (let k = 0; k < h.lane - 1; k++) acc += l.lanes[k] || 0;
+    const off = l.width / 2 - acc - w / 2; // hacia la derecha del sentido de circulación
+    const nx = -p.ty, ny = p.tx; // normal (derecha en pantalla)
+    const cx = p.x + nx * off, cy = p.y + ny * off;
+    out.push(`<line x1="${cx - nx * w / 2}" y1="${cy - ny * w / 2}" x2="${cx + nx * w / 2}" y2="${cy + ny * w / 2}" stroke="var(--mark)" stroke-width="0.6"${tipAttr(`<b>${esc(h.name || 'Semáforo')}</b><br>Línea de parada, carril ${h.lane}`)}/>`);
+  }
+  // bandas de flujo: cada giro desde su decisión de ruta hasta 25 m dentro de la vía de salida
+  const paths = routePaths(cfg), labels = [];
+  const accOfGiro = g => Object.keys(AF.accesos).find(a => AF.accesos[a].includes(g));
+  const vols = paths.map(rp => { const a = rp.giro && accOfGiro(rp.giro); return a && calc.acc[a] ? calc.acc[a].byG[rp.giro] || 0 : 0; });
+  const maxG = Math.max(1, ...vols);
+  const bw = v => Math.max(0.8, 6 * v / maxG);
+  const dedupe = p => p.filter((q, i) => i === 0 || dist(q, p[i - 1]) > 0.05);
+  // posición lateral de cada ruta dentro de su decisión (lado a lado)
+  const byDec = {}; paths.forEach((rp, i) => { if (rp.giro && vols[i] > 0) (byDec[rp.d] ||= []).push(i); });
+  const offs = {};
+  for (const idx of Object.values(byDec)) {
+    const ws = idx.map(i => bw(vols[i])), g = 0.35, tot = ws.reduce((s, w) => s + w, 0) + g * (ws.length - 1); let acc = -tot / 2;
+    idx.forEach((i, k) => { offs[i] = acc + ws[k] / 2; acc += ws[k] + g; });
+  }
+  for (const v of MOD.inputs) {
+    const a = cfg.inputs[v.no], l = G.links[v.link]; if (!a || !l || !entries[a]) continue;
+    const e = entries[a];
+    // etiqueta donde el link entra en la vista
+    const mg = px(46), len = plLen(l.pts); let d0 = 0;
+    for (let d = 0; d <= len; d += 1) { const q = plAt(l.pts, d); if (q.x > vx + mg && q.x < vx + vw - mg && q.y > vy + mg && q.y < vy + vh - mg) { d0 = d; break; } }
+    const p = plAt(l.pts, d0);
+    labels.push({ ax: p.x, ay: p.y, l1: `Acceso ${accName(a)}`, l2: `${fmt(e.vol)} veh/h`, color: accColor(a), strong: true, fixed: true });
+  }
+  paths.forEach((rp, i) => {
+    if (!rp.giro || !(i in offs)) return; const a = accOfGiro(rp.giro), A = calc.acc[a], vol = vols[i];
+    const routedSum = Object.values(cfg.routes).filter(g => A.giros.includes(g)).reduce((t, g) => t + A.byG[g], 0);
+    let kc = -1; rp.parts.forEach((q, k) => { if (q.conn) kc = k; });
+    const segs = rp.parts.slice(0, kc + 1).map(q => q.pts);
+    const nx = rp.parts[kc + 1]; if (nx) { const L = plLen(nx.pts); segs.push(plSub(nx.pts, 0, Math.min(L, 25))); }
+    const pts = dedupe(segs.flat()); if (pts.length < 2) return;
+    const off = plOffset(pts, offs[i]), col = accColor(a);
+    const tip = `<b>Giro ${esc(rp.giro)}</b> (acceso ${esc(accName(a))})<br>${fmt(vol)} veh/h en la hora pico<br>${fmt(100 * (routedSum ? vol / routedSum : 0), 1)} % del acceso · decisión ${rp.d}, ruta ${rp.r}`;
+    out.push(`<path class="band" d="${pathD(off)}" fill="none" stroke="${col}" stroke-width="${bw(vol)}" stroke-linejoin="round" opacity=".85" marker-end="url(#ar-${a})"${tipAttr(tip)}/>`);
+    // ancla de la etiqueta: tramo final, después del giro
+    const tail = plLen(off), q = plAt(off, Math.max(0, tail - 12));
+    labels.push({ ax: q.x, ay: q.y, l1: `Giro ${rp.giro}`, l2: `${fmt(vol)} veh/h`, color: col });
+  });
+  // etiquetas sin superposición (repulsión simple en pantalla)
+  const fs = 12, lh = 1.25;
+  labels.forEach(L => { L.w = px(Math.max(L.l1.length, L.l2.length) * fs * 0.56 + 8); L.h = px(fs * lh * 2 + 4); L.x = L.ax; L.y = L.ay; });
+  const cx0 = vx + vw / 2, cy0 = vy + vh / 2;
+  labels.filter(L => !L.fixed).forEach(L => { const dx = L.ax - cx0, dy = L.ay - cy0, m = Math.hypot(dx, dy) || 1; L.x += dx / m * px(40); L.y += dy / m * px(40); });
+  for (let it = 0; it < 120; it++) {
+    let moved = false;
+    for (let i = 0; i < labels.length; i++) for (let j = i + 1; j < labels.length; j++) {
+      const A = labels[i], B = labels[j]; const dx = B.x - A.x, dy = B.y - A.y;
+      const ox = (A.w + B.w) / 2 - Math.abs(dx), oy = (A.h + B.h) / 2 - Math.abs(dy);
+      if (ox > 0 && oy > 0) {
+        moved = true;
+        const fa = A.fixed ? 0.2 : 1, fb = B.fixed ? 0.2 : 1, sw = fa + fb;
+        if (ox < oy * 1.6) { const m = ox + px(2); A.x -= Math.sign(dx || 1) * m * fa / sw; B.x += Math.sign(dx || 1) * m * fb / sw; }
+        else { const m = oy + px(2); A.y -= Math.sign(dy || 1) * m * fa / sw; B.y += Math.sign(dy || 1) * m * fb / sw; }
+      }
+    }
+    if (!moved) break;
+  }
+  labels.forEach(L => { L.x = Math.min(vx + vw - L.w / 2, Math.max(vx + L.w / 2, L.x)); L.y = Math.min(vy + vh - L.h / 2 - px(22), Math.max(vy + L.h / 2, L.y)); });
+  for (const L of labels) {
+    if (Math.hypot(L.x - L.ax, L.y - L.ay) > px(14)) out.push(`<line x1="${L.ax}" y1="${L.ay}" x2="${L.x}" y2="${L.y}" stroke="var(--ink2)" stroke-width="${px(1)}"/><circle cx="${L.ax}" cy="${L.ay}" r="${px(2.5)}" fill="var(--ink2)"/>`);
+    out.push(`<rect x="${L.x - L.w / 2}" y="${L.y - L.h / 2}" width="${L.w}" height="${L.h}" rx="${px(4)}" fill="var(--panel)" stroke="${L.color}" stroke-width="${px(L.strong ? 2 : 1.5)}"/>`);
+    out.push(`<text x="${L.x}" y="${L.y - px(2)}" text-anchor="middle" font-size="${px(fs)}" fill="var(--ink)" style="font-family:var(--f-head);font-weight:600">${esc(L.l1)}</text>`);
+    out.push(`<text x="${L.x}" y="${L.y + px(fs * lh - 1)}" text-anchor="middle" font-size="${px(fs - 0.5)}" fill="var(--ink2)" style="font-variant-numeric:tabular-nums">${esc(L.l2)}</text>`);
+  }
+  // escala gráfica
+  const sb = [10, 20, 25, 50, 100].find(m => m * s >= 70) || 100;
+  const sx = vx + px(14), sy = vy + vh - px(30);
+  out.push(`<g><rect x="${sx}" y="${sy}" width="${sb / 2}" height="${px(5)}" fill="var(--ink2)"/><rect x="${sx + sb / 2}" y="${sy}" width="${sb / 2}" height="${px(5)}" fill="var(--panel)" stroke="var(--ink2)" stroke-width="${px(1)}"/>
+    <text x="${sx}" y="${sy - px(5)}" font-size="${px(11)}" fill="var(--ink2)">0</text><text x="${sx + sb}" y="${sy - px(5)}" font-size="${px(11)}" fill="var(--ink2)" text-anchor="middle">${sb} m</text></g>`);
+  const defs = Object.keys(AF.accesos).map(a => `<marker id="ar-${a}" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="1.9" markerHeight="1.9" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="${accColor(a)}"/></marker>`).join('');
+  box.innerHTML = `<div class="mapview" role="group" aria-label="Vista del plano"><button type="button" class="${MAP_VIEW === 'core' ? 'on' : ''}" data-view="core" aria-pressed="${MAP_VIEW === 'core'}">Intersección</button><button type="button" class="${MAP_VIEW === 'all' ? 'on' : ''}" data-view="all" aria-pressed="${MAP_VIEW === 'all'}">Red completa</button></div><svg xmlns="${NS}" viewBox="${vx} ${vy} ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Plano de la intersección con los volúmenes por giro"><defs>${defs}</defs>${out.join('')}</svg><span class="mapnote">Orientación y escala del modelo de Vissim · cuadrícula de 10 m</span>`;
+  $('legMap').innerHTML = legendHTML([
+    ...Object.keys(AF.accesos).map(a => ({ label: `Acceso ${accName(a)}`, color: accColor(a) })),
+    { label: 'Calzada (link)', color: 'var(--asphalt)' }, { label: 'Conector', color: 'var(--asphalt2)' },
+  ]);
+}
+
+// ---------- Gráfico: volumen por intervalo ----------
+function chartInt(cfg, calc, issues = []) {
+  const el = $('chInt'), W = Math.max(300, el.clientWidth || 520), H = 230, m = { l: 44, r: 6, t: 20, b: 30 };
+  const L = AF.labels[cfg.per], D = AF.data[cfg.dia] || {}, accs = Object.keys(AF.accesos);
+  const vals = L.map(l => accs.map(a => AF.accesos[a].reduce((s, g) => s + (D[g]?.[l] ? sumN(D[g][l]) : 0), 0)));
+  const bad = L.map(l => [...new Set(issues.filter(i => i.per === cfg.per && i.intervalo === l && (i.tipo === 'Intervalo vacío' || i.tipo === 'Intervalo en cero')).map(i => i.giro))]);
+  const empty = L.map((l, i) => bad[i].length > 0);
+  const ymax = niceMax(Math.max(...vals.map(v => v.reduce((a, b) => a + b, 0))));
+  const iw = W - m.l - m.r, ih = H - m.t - m.b, bw = iw / L.length, y = v => m.t + ih - ih * v / ymax;
+  const o = [CHART_CSS];
+  const pk = calc.pkInt.labels, i0 = L.indexOf(pk[0]);
+  if (i0 >= 0) {
+    o.push(`<rect x="${m.l + i0 * bw}" y="${m.t - 4}" width="${bw * 4}" height="${ih + 4}" fill="var(--peak)"/>`);
+    o.push(txt(m.l + i0 * bw + 4, m.t + 7, cfg.pico === 'acc' ? 'Hora pico de la intersección' : 'Hora pico', { cls: 'v', size: 11 }));
+  }
+  for (let k = 0; k <= 4; k++) { const v = ymax * k / 4, yy = y(v); o.push(`<line x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}" stroke="var(--grid)"/>`); o.push(txt(m.l - 6, yy + 4, fmt(v), { anchor: 'end' })); }
+  const barW = Math.min(34, bw * 0.7);
+  L.forEach((l, i) => {
+    const cx = m.l + i * bw + bw / 2; let base = 0; const tot = vals[i].reduce((a, b) => a + b, 0);
+    if (empty[i]) { o.push(txt(cx, y(0) - 6, '✕', { anchor: 'middle', size: 12, fill: 'var(--crit-ink)', weight: 700 })); }
+    vals[i].forEach((v, k) => { if (v <= 0) return; const yt = y(base + v), yb = y(base); o.push(`<rect x="${cx - barW / 2}" y="${yt}" width="${barW}" height="${Math.max(0, yb - yt)}" fill="${accColor(accs[k])}" stroke="var(--panel)" stroke-width="1"/>`); base += v; });
+    const tip = `<b>${esc(l)}</b><br>Total ${fmt(tot)} veh<br>` + accs.map((a, k) => `${esc(accName(a))}: ${fmt(vals[i][k])}`).join('<br>') + (empty[i] ? `<br>Vacío o en cero en giro(s) ${esc(bad[i].join(', '))}` : '');
+    o.push(`<rect x="${m.l + i * bw}" y="${m.t}" width="${bw}" height="${ih}" fill="transparent"${tipAttr(tip)}/>`);
+    const every = bw >= 38 ? 1 : 2;
+    if (i % every === 0) o.push(txt(cx, H - m.b + 15, hhmm(l), { anchor: 'middle' }));
+  });
+  o.push(`<line x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}" stroke="var(--rule)"/>`);
+  o.push(txt(m.l - 6, m.t - 8, 'veh/15 min', { anchor: 'start' }));
+  el.innerHTML = `<svg xmlns="${NS}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Volumen por intervalo">${o.join('')}</svg>`;
+  $('legInt').innerHTML = legendHTML(accs.map(a => ({ label: `Acceso ${accName(a)}`, color: accColor(a) })));
+}
+
+// ---------- Gráfico: volumen por giro ----------
+function chartGiro(cfg, calc) {
+  const el = $('chGiro'), W = Math.max(300, el.clientWidth || 520);
+  const rows = []; for (const [a, A] of Object.entries(calc.acc)) A.giros.forEach(g => rows.push({ a, g, v: A.byG[g], routed: Object.values(cfg.routes).includes(g), pk: A.pk.labels }));
+  const rh = 26, m = { l: 92, r: 70, t: 4, b: 4 }, H = m.t + m.b + rows.length * rh, iw = W - m.l - m.r;
+  const vmax = Math.max(1, ...rows.map(r => r.v));
+  const o = [CHART_CSS, `<defs><pattern id="hatchG" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--panel)"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--mut)" stroke-width="1.6"/></pattern></defs>`];
+  rows.forEach((r, i) => {
+    const y = m.t + i * rh, w = Math.max(2, iw * r.v / vmax);
+    o.push(txt(m.l - 10, y + rh / 2 + 4, `Giro ${r.g}`, { anchor: 'end', cls: 'h', size: 12.5 }));
+    o.push(`<rect x="${m.l}" y="${y + 5}" width="${w}" height="${rh - 10}" rx="3" fill="${r.routed ? accColor(r.a) : 'url(#hatchG)'}" ${r.routed ? '' : `stroke="var(--mut)"`}/>`);
+    o.push(txt(m.l + w + 6, y + rh / 2 + 4, fmt(r.v) + (r.routed ? '' : ' · sin ruta'), { cls: 'v' }));
+    o.push(`<rect x="0" y="${y}" width="${W}" height="${rh}" fill="transparent"${tipAttr(`<b>Giro ${esc(r.g)}</b> (acceso ${esc(accName(r.a))})<br>${fmt(r.v)} veh en ${rngLab(r.pk)}` + (r.routed ? '' : '<br>Sin ruta en el modelo: se excluye del volumen de entrada'))}/>`);
+  });
+  el.innerHTML = `<svg xmlns="${NS}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Volumen por giro">${o.join('')}</svg>`;
+}
+
+// ---------- Gráfico: composición por acceso ----------
+function chartComp(cfg, calc) {
+  const el = $('chComp'), W = Math.max(300, el.clientWidth || 520);
+  const accs = Object.keys(calc.acc), rh = 40, m = { l: 92, r: 8, t: 4, b: 4 }, H = m.t + m.b + accs.length * rh, iw = W - m.l - m.r;
+  const o = [CHART_CSS];
+  accs.forEach((a, i) => {
+    const A = calc.acc[a], tot = A.byC.reduce((s, x) => s + x, 0) || 1, y = m.t + i * rh; let x = m.l;
+    o.push(txt(m.l - 10, y + rh / 2 + 1, accName(a), { anchor: 'end', cls: 'h', size: 12.5 }));
+    o.push(txt(m.l - 10, y + rh / 2 + 14, `${fmt(A.volHP)} veh`, { anchor: 'end', size: 11 }));
+    A.byC.forEach((v, k) => {
+      const w = iw * v / tot; if (w <= 0) return;
+      o.push(`<rect x="${x}" y="${y + 7}" width="${Math.max(0, w)}" height="${rh - 14}" fill="${clsColor(k)}" stroke="var(--panel)" stroke-width="2"${tipAttr(`<b>${esc(accName(a))}: ${CLASSES[k]}</b><br>${fmt(v)} veh · ${fmt(100 * v / tot, 1)} %`)}/>`);
+      if (w >= 40) o.push(txt(x + w / 2, y + rh / 2 + 4, `${fmt(100 * v / tot, 0)} %`, { anchor: 'middle', fill: k === 0 ? 'var(--ink)' : '#ffffff', size: 12, weight: 600 }));
+      x += w;
+    });
+  });
+  el.innerHTML = `<svg xmlns="${NS}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Composición vehicular por acceso">${o.join('')}</svg>`;
+  $('legComp').innerHTML = legendHTML(CLASSES.map((c, k) => ({ label: AF.classNames?.[k] ? `${c} (${AF.classNames[k]})` : c, color: clsColor(k) })));
+}
+
+// ---------- Gráfico: calidad del aforo (giro × intervalo) ----------
+function chartQ(cfg, calc, issues) {
+  const el = $('chQ'), W = Math.max(300, el.clientWidth || 520);
+  const D = AF.data[cfg.dia] || {}, LM = AF.labels.M, LT = AF.labels.T, cols = [...LM.map(l => ['M', l]), ...LT.map(l => ['T', l])];
+  const rows = Object.entries(AF.accesos).flatMap(([a, gs]) => gs.map(g => ({ a, g })));
+  const m = { l: 64, r: 4, t: 34, b: 22 }, gap = 10, cw = (W - m.l - m.r - gap) / cols.length, ch = 20, H = m.t + m.b + rows.length * ch;
+  const xOf = i => m.l + i * cw + (i >= LM.length ? gap : 0);
+  const keyI = {}; issues.forEach(it => { if (!it.giro) return; const k = it.intervalo ? `${it.giro}|${it.per}|${it.intervalo}` : `${it.giro}|${it.per}|*`; (keyI[k] ||= []).push(it.tipo); });
+  const o = [CHART_CSS, `<defs><pattern id="hatchQ" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--panel)"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--rule)" stroke-width="2"/></pattern></defs>`];
+  const per = cfg.per, pkL = calc.pkInt.labels, pi = cols.findIndex(c => c[0] === per && c[1] === pkL[0]);
+  if (pi >= 0) { const xa = xOf(pi), xb = xOf(pi + 3) + cw; o.push(`<path d="M${xa + 1} ${m.t - 4}V${m.t - 9}H${xb - 1}V${m.t - 4}" fill="none" stroke="var(--ink2)"/>`); o.push(txt((xa + xb) / 2, m.t - 13, 'Hora pico', { anchor: 'middle', cls: 'v', size: 11 })); }
+  o.push(txt(xOf(0), 11, 'Mañana', { cls: 'h', size: 12 })); o.push(txt(xOf(LM.length), 11, 'Tarde', { cls: 'h', size: 12 }));
+  const bins = ['--q1', '--q2', '--q3', '--q4', '--q5', '--q6'];
+  rows.forEach((r, j) => {
+    const y = m.t + j * ch, G = D[r.g] || {};
+    const rmax = Math.max(1, ...cols.map(([, l]) => G[l] ? sumN(G[l]) : 0));
+    o.push(`<rect x="4" y="${y + 5}" width="9" height="9" rx="2" fill="${accColor(r.a)}"/>`);
+    o.push(txt(18, y + ch / 2 + 4, `Giro ${r.g}`, { cls: 'v', size: 11.5 }));
+    cols.forEach(([p, l], i) => {
+      const v = G[l], x = xOf(i), emp = isEmptyRow(v), t = emp ? null : sumN(v);
+      const fill = emp ? 'url(#hatchQ)' : t === 0 ? 'var(--q0)' : `var(${bins[Math.min(5, Math.floor(6 * t / rmax - 1e-9))]})`;
+      const al = [...(keyI[`${r.g}|${p}|${l}`] || []), ...(keyI[`${r.g}|${p}|*`] || [])];
+      o.push(`<rect x="${x + 0.5}" y="${y + 0.5}" width="${cw - 1}" height="${ch - 1}" fill="${fill}"${al.length ? ` stroke="var(--crit)" stroke-width="2"` : ''}${tipAttr(`<b>Giro ${esc(r.g)} · ${esc(l)}</b><br>${emp ? 'Sin registro' : fmt(t) + ' veh'}` + (al.length ? `<br>Alerta: ${esc([...new Set(al)].join(', '))}` : ''))}/>`);
+    });
+  });
+  cols.forEach(([p, l], i) => { if (l.slice(3, 5) === '00') o.push(txt(xOf(i), H - 6, hhmm(l), { size: 10.5 })); });
+  el.innerHTML = `<svg xmlns="${NS}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Calidad del aforo por giro e intervalo">${o.join('')}</svg>`;
+  $('legQ').innerHTML = legendHTML([{ label: 'Menor volumen', color: 'var(--q1)' }, { label: 'Mayor volumen', color: 'var(--q6)' }, { label: 'Sin registro', cls: 'hatch' }, { label: 'Con alerta', cls: 'out' }]);
+}
+
+// ---------- Indicadores y notas ----------
+function renderKpis(cfg, calc, entries, issues) {
+  const pk = calc.pkInt, fhp = pk.vol / (4 * pk.q15max);
+  const inPk = issues.filter(i => i.per === cfg.per && i.giro && (i.intervalo ? Object.values(calc.acc).some(A => A.giros.includes(i.giro) && A.pk.labels.includes(i.intervalo)) : i.tipo === 'Periodo copiado'));
+  const nAl = issues.filter(i => i.sev !== 'info').length;
+  const sinRuta = Object.values(entries).flatMap(e => e.sinRuta);
+  const toModel = Object.entries(entries).filter(([a]) => Object.values(readCfg().inputs).includes(a)).reduce((s, [, e]) => s + e.vol, 0);
+  $('kpis').innerHTML = [
+    `<div class="kpi"><span>Hora pico de la intersección</span><b>${rngLab(pk.labels)}</b><small>Factor de hora pico ${fmt(fhp, 3)}</small></div>`,
+    `<div class="kpi"><span>Volumen en la hora pico</span><b>${fmt(pk.vol)} veh/h</b><small>Todos los giros del aforo</small></div>`,
+    `<div class="kpi"><span>Demanda que irá al modelo</span><b>${fmt(toModel)} veh/h</b><small>${MOD.inputs.length} entradas de vehículos</small></div>`,
+    `<div class="kpi ${inPk.length ? 'alert' : nAl ? '' : 'okk'}"><span>Alertas del aforo (${esc(cfg.dia)})</span><b>${fmt(nAl)}</b><small>${inPk.length ? `${inPk.length} dentro de la hora pico` : 'Ninguna dentro de la hora pico'}</small></div>`,
+    `<div class="kpi ${sinRuta.length ? 'alert' : 'okk'}"><span>Giros sin ruta en el modelo</span><b>${sinRuta.length}</b><small>${sinRuta.length ? 'Giro ' + sinRuta.map(esc).join(', ') : 'Todos los giros tienen ruta'}</small></div>`,
+  ].join('');
+  const notes = [];
+  if (inPk.length) notes.push(`<li class="msg warn">Hay ${inPk.length} alerta(s) dentro de la hora pico de este escenario. Revísalas en el gráfico de calidad o elige otro día.</li>`);
+  for (const [a, e] of Object.entries(entries)) if (e.sinRuta.length) notes.push(`<li class="msg info">Giro ${e.sinRuta.map(esc).join(', ')} (acceso ${esc(accName(a))}): ${fmt(e.excl)} veh sin ruta en el modelo; se excluyen del volumen de entrada. Crea la ruta en Vissim para incluirlos.</li>`);
+  const unIn = MOD.inputs.filter(v => !readCfg().inputs[v.no]); if (unIn.length) notes.push(`<li class="msg warn">Entrada(s) ${unIn.map(v => v.no).join(', ')} sin acceso asignado (paso 3).</li>`);
+  $('prevNotes').innerHTML = notes.join('');
+}
+
+// ---------- Actualización ----------
+let lastPrev = null;
+function refreshPreview() {
+  if (!AF || !MOD || $('secPrev').classList.contains('hidden')) return;
+  const cfg = readCfg();
+  if (!AF.data[cfg.dia]) return;
+  try {
+    const calc = compute(cfg), entries = entryVolumes(cfg, calc), issues = qa(cfg.dia);
+    lastPrev = { cfg, calc, entries, issues };
+    renderKpis(cfg, calc, entries, issues); renderMap(cfg, calc, entries); chartInt(cfg, calc, issues); chartGiro(cfg, calc); chartComp(cfg, calc); chartQ(cfg, calc, issues);
+  } catch (e) { $('prevNotes').innerHTML = `<li class="msg err">No se pudo generar la vista previa: ${esc(e.message)}</li>`; }
+  document.querySelectorAll('#secCfg select').forEach(s => s.classList.toggle('empty', !s.value));
+}
+function setStep(n) { [...$('steps').children].forEach((li, i) => { li.classList.toggle('done', i + 1 < n); li.classList.toggle('now', i + 1 === n); }); }
+function onConfigReady() {
+  ['secPrev', 'secRun'].forEach(id => $(id).classList.remove('hidden'));
+  ['secQA', 'secRes'].forEach(id => $(id).classList.add('hidden'));
+  setStep(2); refreshPreview();
+}
+function invalidateResult() {
+  if (!OUT) return;
+  OUT = null; ['secQA', 'secRes'].forEach(id => $(id).classList.add('hidden'));
+  $('btnRun').textContent = 'Procesar y verificar de nuevo'; setStep(3);
+}
+document.addEventListener('change', e => {
+  if (e.target.matches('#secPrev select, #secCfg select')) { if (e.target.closest('#secCfg')) setStep(3); invalidateResult(); refreshPreview(); }
+});
+let rzT = null; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(refreshPreview, 150); });
+
+// ---------- Información emergente ----------
+const tip = $('tip');
+document.addEventListener('mousemove', e => {
+  const t = e.target.closest?.('[data-tip]');
+  if (!t) { tip.style.opacity = 0; return; }
+  tip.innerHTML = t.getAttribute('data-tip'); tip.style.opacity = 1;
+  const r = tip.getBoundingClientRect(); let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14; if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+});
+document.addEventListener('mouseleave', () => tip.style.opacity = 0);
+
+// ---------- Carga de archivos ----------
+function setDrop(id, state, html) { const d = $(id); d.classList.remove('ok', 'err'); if (state) d.classList.add(state); d.querySelector('.d').innerHTML = html; }
+function checkReady() {
+  $('loadMsg').innerHTML = '';
+  if (AF && MOD) { buildConfig(); }
+  else setStep(1);
+}
+async function loadXlsx(f) {
+  try {
+    AF = readAforos(XLSX.read(await f.arrayBuffer(), { type: 'array' }));
+    if (!AF.dias.length) throw new Error('No se encontraron hojas con nombre AFORO_<fecha>_<acceso>.');
+    setDrop('dropX', 'ok', `<span class="file">${esc(f.name)}</span><br>${AF.dias.length} día(s): ${AF.dias.map(esc).join(', ')} · ${Object.values(AF.accesos).flat().length} giros en ${Object.keys(AF.accesos).length} accesos · ${AF.labels.M.length + AF.labels.T.length} intervalos`);
+    checkReady();
+  } catch (err) { AF = null; setDrop('dropX', 'err', `<span class="file">${esc(f.name)}</span><br>${esc(err.message)}`); }
+}
+async function loadInpx(f) {
+  try {
+    MOD = readModel(await f.text()); MOD.fileName = f.name;
+    const nl = Object.values(MOD.geo.links);
+    setDrop('dropM', 'ok', `<span class="file">${esc(f.name)}</span><br>Vissim ${esc(MOD.version || '')} · ${nl.filter(l => !l.conn).length} links y ${nl.filter(l => l.conn).length} conectores · ${MOD.inputs.length} entradas · ${MOD.decisions.length} decisiones de ruta`);
+    checkReady();
+  } catch (err) { MOD = null; setDrop('dropM', 'err', `<span class="file">${esc(f.name)}</span><br>${esc(err.message)}`); }
+}
+$('fXlsx').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadXlsx(f); });
+$('fInpx').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadInpx(f); });
+for (const [id, fn, re] of [['dropX', loadXlsx, /\.xls[xm]?$/i], ['dropM', loadInpx, /\.inpx$/i]]) {
+  const d = $(id);
+  d.addEventListener('dragover', e => { e.preventDefault(); d.classList.add('over'); });
+  d.addEventListener('dragleave', () => d.classList.remove('over'));
+  d.addEventListener('drop', e => {
+    e.preventDefault(); d.classList.remove('over');
+    const f = [...e.dataTransfer.files].find(x => re.test(x.name)) || e.dataTransfer.files[0]; if (f) fn(f);
+  });
+}
+$('btnRun').addEventListener('click', () => {
+  run();
+  if (OUT?.issues) $('sumQA').textContent = `Alertas del control de calidad (${OUT.issues.length})`;
+  $('btnRun').textContent = 'Procesar y verificar';
+});
+$('btnDl').addEventListener('click', () => OUT?.res && download(OUT.name, OUT.res.text, 'application/xml'));
+$('btnCsv').addEventListener('click', () => OUT && csv());
+
+</script>
+</body>
+</html>

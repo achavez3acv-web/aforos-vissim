@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "Si usas esta herramienta, cita el artículo y este repositorio."
+title: "Aforos a PTV Vissim"
+version: "1.2"
+date-released: "2026-11-24"
+authors:
+  - family-names: "Chávez Chumbe"
+    given-names: "Axel David"
+    orcid: "https://orcid.org/0009-0009-1400-6773"
+    affiliation: "Universidad Peruana de Ciencias Aplicadas"
+  - family-names: "Miñano Chamorro"
+    given-names: "Pedro Luis"
+    orcid: "https://orcid.org/0000-0002-3763-3202"
+    affiliation: "Universidad Peruana de Ciencias Aplicadas"
+  - family-names: "Velasquez Quezada"
+    given-names: "Yosel Luis"
+    orcid: "https://orcid.org/0009-0004-6539-0529"
+    affiliation: "Universidad Peruana de Ciencias Aplicadas"

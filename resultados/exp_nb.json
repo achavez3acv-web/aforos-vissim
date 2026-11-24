@@ -1,0 +1,36 @@
+{
+ "Poisson": {
+  "alarmasPorDia": 0.121,
+  "diasConAlarma": 115,
+  "byType": {
+   "Intervalo repetido": 80,
+   "Valor atípico": 41
+  }
+ },
+ "k=50": {
+  "alarmasPorDia": 0.152,
+  "diasConAlarma": 139,
+  "byType": {
+   "Intervalo repetido": 62,
+   "Valor atípico": 90
+  }
+ },
+ "k=20": {
+  "alarmasPorDia": 0.196,
+  "diasConAlarma": 185,
+  "byType": {
+   "Intervalo repetido": 71,
+   "Valor atípico": 124,
+   "Intervalo en cero": 1
+  }
+ },
+ "k=10": {
+  "alarmasPorDia": 0.306,
+  "diasConAlarma": 257,
+  "byType": {
+   "Intervalo repetido": 51,
+   "Valor atípico": 249,
+   "Intervalo en cero": 6
+  }
+ }
+}

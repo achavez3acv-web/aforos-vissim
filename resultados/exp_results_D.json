@@ -1,0 +1,93 @@
+{
+ "baseAlerts": 7,
+ "types": {
+  "Intervalo vacío": {
+   "n": 500,
+   "det": 500,
+   "rate": 1,
+   "extra": {}
+  },
+  "Celda vacía": {
+   "n": 500,
+   "det": 500,
+   "rate": 1,
+   "extra": {}
+  },
+  "Valor con texto": {
+   "n": 500,
+   "det": 500,
+   "rate": 1,
+   "extra": {}
+  },
+  "Intervalo en cero": {
+   "n": 500,
+   "det": 428,
+   "rate": 0.856,
+   "extra": {
+    "mediana>=5": [
+     428,
+     464
+    ],
+    "mediana<5": [
+     0,
+     36
+    ]
+   }
+  },
+  "Intervalo copiado": {
+   "n": 500,
+   "det": 405,
+   "rate": 0.81,
+   "extra": {}
+  },
+  "Periodo copiado": {
+   "n": 500,
+   "det": 500,
+   "rate": 1,
+   "extra": {}
+  },
+  "Total alterado": {
+   "n": 500,
+   "det": 500,
+   "rate": 1,
+   "extra": {}
+  },
+  "Cero de más (×10)": {
+   "n": 500,
+   "det": 421,
+   "rate": 0.842,
+   "extra": {
+    "resultado>=10": [
+     421,
+     500
+    ]
+   }
+  },
+  "Dígito transpuesto": {
+   "n": 500,
+   "det": 9,
+   "rate": 0.018,
+   "extra": {}
+  }
+ },
+ "fp": {
+  "K=5": {
+   "datasets": 1000,
+   "datasetsWithAlert": 106,
+   "alerts": 112,
+   "byType": {
+    "Valor atípico": 31,
+    "Intervalo repetido": 79,
+    "Intervalo en cero": 2
+   },
+   "x10det": 0.874
+  }
+ },
+ "repEx": [
+  "14 Valores idénticos al intervalo anterior (18:15 - 18:30): 2, 22, 0, 0. Posible copia.",
+  "21 Valores idénticos al intervalo anterior (07:00 - 07:15): 1, 45, 2, 0. Posible copia.",
+  "14 Valores idénticos al intervalo anterior (17:00 - 17:15): 6, 18, 0, 0. Posible copia.",
+  "14 Valores idénticos al intervalo anterior (18:30 - 18:45): 4, 24, 0, 0. Posible copia.",
+  "21 Valores idénticos al intervalo anterior (19:30 - 19:45): 10, 41, 0, 0. Posible copia."
+ ]
+}
